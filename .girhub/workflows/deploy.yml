@@ -2,12 +2,13 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ master ] # Используйте 'master', если это основная ветка
+    branches: [master] # Используем master, если ваша ветка называется master
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
