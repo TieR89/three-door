@@ -3,7 +3,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-// Интерфейсы для типизации
+// Типы
 interface SceneObjects {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
@@ -14,14 +14,14 @@ interface SceneObjects {
   cubeCamera: THREE.CubeCamera;
 }
 
-// Состояние компонента
+// Состояние
 const container = ref<HTMLDivElement | null>(null);
 const width = ref(2);
 const height = ref(4);
 let sceneObjects: SceneObjects | null = null;
 let animationFrameId: number | null = null;
 
-// Константы для настройки сцены
+// Конфигурация
 const CAMERA_CONFIG = {
   fov: 75,
   near: 0.1,
@@ -38,11 +38,18 @@ const CONTROLS_CONFIG = {
   maxPolarAngle: Math.PI / 2
 };
 
-// Оптимизированный загрузчик текстур
+// Функция для получения путей к текстурам
+const getTexturePath = (filename: string): string => {
+  const base = process.env.NODE_ENV === 'production' ? '/three-door' : '';
+  return `${base}/textures/${filename}`;
+};
+
+// Загрузчик текстур с кешированием
 const textureLoader = new THREE.TextureLoader();
 const textureCache = new Map<string, THREE.Texture>();
 
-const loadTexture = async (path: string): Promise<THREE.Texture> => {
+const loadTexture = async (filename: string): Promise<THREE.Texture> => {
+  const path = getTexturePath(filename);
   if (textureCache.has(path)) {
     return textureCache.get(path)!;
   }
@@ -64,7 +71,6 @@ const createDoor = (() => {
     const doorGroup = new THREE.Group();
     const frameThickness = 0.1;
 
-    // Создаем материалы один раз
     if (!frameMaterial) {
       frameMaterial = new THREE.MeshPhongMaterial({ color: 0x654321 });
     }
@@ -79,14 +85,14 @@ const createDoor = (() => {
       0.05
     );
     const centerMaterial = new THREE.MeshPhongMaterial({
-      map: textureCache.get('/textures/wood.jpg')
+      map: textureCache.get(getTexturePath('wood.jpg'))
     });
     const center = new THREE.Mesh(centerGeometry, centerMaterial);
     center.castShadow = true;
     center.receiveShadow = true;
     doorGroup.add(center);
 
-    // Создание рамки
+    // Функция для создания частей рамки
     const createFrame = (
       geometry: THREE.BoxGeometry,
       position: THREE.Vector3
@@ -98,7 +104,7 @@ const createDoor = (() => {
       return frame;
     };
 
-    // Добавление частей рамки
+    // Создание рамки
     const frameGeometries = {
       horizontal: new THREE.BoxGeometry(width, frameThickness, 0.05),
       vertical: new THREE.BoxGeometry(frameThickness, height, 0.05)
@@ -161,14 +167,14 @@ async function initScene() {
   const controls = new OrbitControls(camera, renderer.domElement);
   Object.assign(controls, CONTROLS_CONFIG);
 
-  // Загрузка текстур
+  // Загрузка всех текстур
   await Promise.all([
-    loadTexture('/textures/wood.jpg'),
-    loadTexture('/textures/marble.jpg'),
-    loadTexture('/textures/wall.jpg')
+    loadTexture('wood.jpg'),
+    loadTexture('marble.jpg'),
+    loadTexture('wall.jpg')
   ]);
 
-  // Создание кубической камеры для отражений с высоким качеством
+  // Кубическая камера для отражений
   const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512, {
     generateMipmaps: true,
     minFilter: THREE.LinearMipmapLinearFilter
@@ -176,7 +182,7 @@ async function initScene() {
   const cubeCamera = new THREE.CubeCamera(1, 1000, cubeRenderTarget);
   scene.add(cubeCamera);
 
-  // Создание отражающего цилиндра
+  // Отражающий цилиндр
   const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 32);
   const cylinderMaterial = new THREE.MeshPhongMaterial({
     envMap: cubeRenderTarget.texture,
@@ -190,14 +196,16 @@ async function initScene() {
   cylinder.receiveShadow = true;
   scene.add(cylinder);
 
-  // Создание остальных объектов сцены
+  // Дверь
   const door = createDoor(width.value, height.value);
   scene.add(door);
 
   // Пол
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshPhongMaterial({ map: textureCache.get('/textures/marble.jpg') })
+    new THREE.MeshPhongMaterial({
+      map: textureCache.get(getTexturePath('marble.jpg'))
+    })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = -2;
@@ -207,7 +215,9 @@ async function initScene() {
   // Стена
   const wall = new THREE.Mesh(
     new THREE.PlaneGeometry(20, 10),
-    new THREE.MeshPhongMaterial({ map: textureCache.get('/textures/wall.jpg') })
+    new THREE.MeshPhongMaterial({
+      map: textureCache.get(getTexturePath('wall.jpg'))
+    })
   );
   wall.position.set(0, 3, -5);
   wall.receiveShadow = true;
@@ -237,7 +247,7 @@ async function initScene() {
   sceneObjects = { scene, camera, renderer, controls, door, cylinder, cubeCamera };
 }
 
-// Функция анимации
+// Анимация
 function animate() {
   if (!sceneObjects) return;
   const { scene, camera, renderer, controls, cylinder, cubeCamera } = sceneObjects;
