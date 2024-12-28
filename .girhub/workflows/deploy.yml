@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ master ]  # Используем master вместо main
+    branches: [ master ] # Используйте 'master', если это основная ветка
   workflow_dispatch:
 
 jobs:
