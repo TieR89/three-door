@@ -9,6 +9,6 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  base: '/', // Базовый путь для деплоя
+  base: '/three-door/', // Базовый путь для деплоя
   plugins: [vue()],
 })
