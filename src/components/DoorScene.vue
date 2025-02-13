@@ -54,11 +54,18 @@ const loadTexture = async (filename: string): Promise<THREE.Texture> => {
     return textureCache.get(path)!
   }
 
-  return new Promise((resolve) => {
-    textureLoader.load(path, (texture) => {
-      textureCache.set(path, texture)
-      resolve(texture)
-    })
+  return new Promise((resolve, reject) => {
+    textureLoader.load(
+      path,
+      (texture) => {
+        textureCache.set(path, texture)
+        resolve(texture)
+      },
+      undefined,
+      (error) => {
+        reject(new Error(`Failed to load texture: ${path}. Error: ${error.message}`))
+      },
+    )
   })
 }
 
@@ -84,8 +91,32 @@ const createDoor = (() => {
       height - 2 * frameThickness,
       0.05,
     )
+    // const centerMaterial = new THREE.MeshPhongMaterial({
+    //   map: textureCache.get(getTexturePath('wood.jpg')),
+    // })
+    // const center = new THREE.Mesh(centerGeometry, centerMaterial)
+    // center.castShadow = true
+    // center.receiveShadow = true
+    // doorGroup.add(center)
+
+    // Настройка UV-координат для центральной части
+    const uvAttribute = centerGeometry.attributes.uv
+    for (let i = 0; i < uvAttribute.count; i++) {
+      const u = uvAttribute.getX(i)
+      const v = uvAttribute.getY(i)
+      // Масштабируем UV-координаты в зависимости от размеров двери
+      uvAttribute.setXY(i, u * (width - 2 * frameThickness), v * (height - 2 * frameThickness))
+    }
+    uvAttribute.needsUpdate = true
+
+    // Загрузка текстуры и настройка RepeatWrapping
+    const woodTexture = textureCache.get(getTexturePath('wood.jpg'))!
+    woodTexture.wrapS = THREE.RepeatWrapping
+    woodTexture.wrapT = THREE.RepeatWrapping
+    woodTexture.repeat.set(0.5, 0.5) // Текстура будет повторяться пропорционально размерам
+
     const centerMaterial = new THREE.MeshPhongMaterial({
-      map: textureCache.get(getTexturePath('wood.jpg')),
+      map: woodTexture,
     })
     const center = new THREE.Mesh(centerGeometry, centerMaterial)
     center.castShadow = true
@@ -194,15 +225,40 @@ async function initScene() {
   scene.add(door)
 
   // Пол
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshPhongMaterial({
-      map: textureCache.get(getTexturePath('marble.jpg')),
-    }),
-  )
-  floor.rotation.x = -Math.PI / 2
-  floor.position.y = -2
-  floor.receiveShadow = true
+  // const floor = new THREE.Mesh(
+  //   new THREE.PlaneGeometry(20, 20),
+  //   new THREE.MeshPhongMaterial({
+  //     map: textureCache.get(getTexturePath('marble.jpg')),
+  //   }),
+  // )
+  // floor.rotation.x = -Math.PI / 2
+  // floor.position.y = -2
+  // floor.receiveShadow = true // Пол принимает тени
+  // scene.add(floor)
+
+  const createTiledFloor = (tileSize: number, texture: THREE.Texture): THREE.Mesh => {
+    const floorGeometry = new THREE.PlaneGeometry(tileSize, tileSize)
+
+    // Настройка RepeatWrapping для текстуры
+    texture.wrapS = THREE.RepeatWrapping
+    texture.wrapT = THREE.RepeatWrapping
+    texture.repeat.set(10, 10) // Текстура повторяется 5x5 раз
+
+    const floorMaterial = new THREE.MeshPhongMaterial({
+      map: texture,
+    })
+
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial)
+    floor.rotation.x = -Math.PI / 2
+    floor.position.y = -2
+    floor.receiveShadow = true
+
+    return floor
+  }
+
+  // В initScene замените создание пола на:
+  const floorTexture = textureCache.get(getTexturePath('marble.jpg'))!
+  const floor = createTiledFloor(20, floorTexture) // Пол 20x20 с повторяющейся текстурой
   scene.add(floor)
 
   // Стена
@@ -213,7 +269,7 @@ async function initScene() {
     }),
   )
   wall.position.set(0, 3, -5)
-  wall.receiveShadow = true
+  wall.receiveShadow = true // Стена принимает тени
   scene.add(wall)
 
   // Пирамида
