@@ -63,7 +63,11 @@ const loadTexture = async (filename: string): Promise<THREE.Texture> => {
       },
       undefined,
       (error) => {
-        reject(new Error(`Failed to load texture: ${path}. Error: ${error.message}`))
+        if (error instanceof Error) {
+          reject(new Error(`Failed to load texture: ${path}. Error: ${error.message}`))
+        } else {
+          reject(new Error(`Failed to load texture: ${path}. Unknown error occurred.`))
+        }
       },
     )
   })
